@@ -4,24 +4,33 @@ import ExpandableText from './components/ExpandableText';
 
 type CaptionExample = {
   id: number;
+  created_datetime_utc: string;
+  modified_datetime_utc: string | null; // modified_datetime_utc can be null
   image_description: string;
   caption: string;
   explanation: string;
+  priority: number;
+  image_id: string | null; // image_id can be null
 };
 
 export default async function Home() {
   const { data: caption_examples, error } = await supabase
     .from('caption_examples')
-    .select('id, image_description, caption, explanation');
+    .select('*');
 
   if (error) {
     console.error('Error fetching caption examples:', error);
     // You might want to render an error state here
   }
 
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-5xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+      <main className="flex min-h-screen w-full max-w-full flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <Image
           className="dark:invert"
           src="/next.svg"
@@ -47,6 +56,12 @@ export default async function Home() {
                   ID
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  Created At
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  Modified At
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                   Image Description
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
@@ -55,17 +70,31 @@ export default async function Home() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                   Explanation
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  Priority
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  Image ID
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:bg-black dark:divide-gray-700">
               {caption_examples?.map((example: CaptionExample) => (
                 <tr key={example.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{example.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatDate(example.created_datetime_utc)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatDate(example.modified_datetime_utc)}</td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
-                    <ExpandableText text={example.image_description} />
+                    <ExpandableText text={example.image_description} maxLength={50} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{example.caption}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{example.explanation}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
+                    <ExpandableText text={example.caption} maxLength={50} />
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
+                    <ExpandableText text={example.explanation} maxLength={50} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{example.priority}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{example.image_id}</td>
                 </tr>
               ))}
             </tbody>
