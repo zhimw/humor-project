@@ -10,7 +10,7 @@ type ExpandableTextProps = {
 export default function ExpandableText({ text, maxLength = 100 }: ExpandableTextProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (text.length <= maxLength) {
+  if (!text || text.length <= maxLength) {
     return <span>{text}</span>;
   }
 
