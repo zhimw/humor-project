@@ -45,12 +45,17 @@ export default function AuthStatus() {
     return (
       <div className="text-sm text-gray-700 dark:text-gray-300">
         <p>Signed in as {session.user.email}.</p>
-        <Link href="/gated-content" className="text-blue-500 hover:underline">
-          Go to Gated Content
-        </Link>
+        <div className="flex gap-4 mt-2">
+          <Link href="/captions" className="text-blue-500 hover:underline">
+            Vote on Captions
+          </Link>
+          <Link href="/voted-history" className="text-blue-500 hover:underline">
+            Voting History
+          </Link>
+        </div>
         <button
           onClick={handleLogout}
-          className="ml-4 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+          className="mt-3 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
         >
           Logout
         </button>

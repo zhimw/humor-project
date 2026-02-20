@@ -12,8 +12,8 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // Success! Redirect to your gated message page
-      return NextResponse.redirect(`${origin}/gated-content`)
+      // Success! Redirect to home page
+      return NextResponse.redirect(`${origin}/`)
     }
   }
 

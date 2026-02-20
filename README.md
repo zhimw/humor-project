@@ -1,4 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project for the Humor Project, featuring caption voting functionality.
+
+## Features
+
+### Caption Voting System (Assignment #4)
+
+This app allows logged-in users to vote on captions:
+
+- **Upvote/Downvote**: Users can upvote (+1) or downvote (-1) captions
+- **Vote Toggle**: Clicking the same vote button again removes the vote
+- **Vote Change**: Users can change their vote from upvote to downvote or vice versa
+- **Authentication Required**: Only logged-in users can vote on captions
+- **Real-time Updates**: Vote counts update immediately with optimistic UI updates
+- **Database Mutations**: Votes are stored in the `caption_votes` table
+
+The voting system uses:
+- **Server Actions** (`src/app/captions/actions.ts`) for secure vote mutations
+- **Client Components** (`src/app/components/VoteButton.tsx`) for interactive UI
+- **Supabase** for authentication and database operations
+
+### Pages
+
+- `/` - Home page with personalized welcome showing two main options when logged in
+- `/captions` - Tinder-style voting interface: view one caption at a time with its image (requires login)
+- `/voted-history` - Grid view of all captions you've voted on with pagination (20 per page, requires login)
 
 ## Getting Started
 
