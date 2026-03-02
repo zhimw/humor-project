@@ -34,6 +34,8 @@ type CaptionVotingInterfaceProps = {
   initialCaption: Caption | null;
 };
 
+type FloatEmoji = { key: number; emoji: string };
+
 export default function CaptionVotingInterface({ initialCaption }: CaptionVotingInterfaceProps) {
   const [history, setHistory] = useState<HistoryItem[]>(
     initialCaption ? [{ caption: initialCaption, voteValue: initialCaption.userVote }] : []
@@ -44,6 +46,11 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
   const [isLoadingNext, setIsLoadingNext] = useState(false);
   const [preloadedCaption, setPreloadedCaption] = useState<Caption | null>(null);
   const [isPreloading, setIsPreloading] = useState(false);
+
+  // Animation states
+  const [upBounce, setUpBounce] = useState(false);
+  const [downBounce, setDownBounce] = useState(false);
+  const [floatEmoji, setFloatEmoji] = useState<FloatEmoji | null>(null);
 
   const currentItem = history[currentIndex];
   const canGoBack = currentIndex > 0;
@@ -57,9 +64,7 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
         setIsPreloading(true);
         try {
           const result = await getRandomUnvotedCaption();
-          if (result.caption) {
-            setPreloadedCaption(result.caption);
-          }
+          if (result.caption) setPreloadedCaption(result.caption);
         } catch (err) {
           console.error('Preload error:', err);
         } finally {
@@ -67,22 +72,34 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
         }
       }
     };
-
     preloadNext();
   }, [currentIndex, history.length, isAtEnd, preloadedCaption, isPreloading]);
+
+  const triggerVoteAnimation = (voteValue: 1 | -1) => {
+    if (voteValue === 1) {
+      setUpBounce(true);
+      setTimeout(() => setUpBounce(false), 450);
+      setFloatEmoji({ key: Date.now(), emoji: '😂' });
+    } else {
+      setDownBounce(true);
+      setTimeout(() => setDownBounce(false), 450);
+      setFloatEmoji({ key: Date.now(), emoji: '😑' });
+    }
+    setTimeout(() => setFloatEmoji(null), 800);
+  };
 
   const handleVote = async (voteValue: 1 | -1) => {
     if (!currentItem) return;
 
     setError(null);
     const previousVote = currentItem.voteValue;
+    const newVote = previousVote === voteValue ? null : voteValue;
 
-    // Update current item's vote in history
+    // Always animate on click (feels responsive)
+    triggerVoteAnimation(voteValue);
+
     const newHistory = [...history];
-    newHistory[currentIndex] = {
-      ...currentItem,
-      voteValue: previousVote === voteValue ? null : voteValue
-    };
+    newHistory[currentIndex] = { ...currentItem, voteValue: newVote };
     setHistory(newHistory);
 
     startTransition(async () => {
@@ -90,17 +107,12 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
 
       if (!result.success) {
         setError(result.error || 'Failed to submit vote');
-        // Revert the vote change
         const revertHistory = [...history];
-        revertHistory[currentIndex] = {
-          ...currentItem,
-          voteValue: previousVote
-        };
+        revertHistory[currentIndex] = { ...currentItem, voteValue: previousVote };
         setHistory(revertHistory);
         return;
       }
 
-      // Vote successful! Now load next caption if we're at the end of history
       if (currentIndex === history.length - 1) {
         await loadNextCaption();
       }
@@ -114,12 +126,10 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
     try {
       let nextCaption: Caption | null = null;
 
-      // Use preloaded caption if available
       if (preloadedCaption) {
         nextCaption = preloadedCaption;
         setPreloadedCaption(null);
       } else {
-        // Otherwise fetch a new one
         const result = await getRandomUnvotedCaption();
         if (result.error || !result.caption) {
           setError(result.error || 'No more captions available');
@@ -129,63 +139,56 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
         nextCaption = result.caption;
       }
 
-      // Add new caption to history
       setHistory(prev => [...prev, { caption: nextCaption!, voteValue: null }]);
       setCurrentIndex(prev => prev + 1);
-      
-      // Immediately start preloading the next caption in background
+
       setTimeout(async () => {
         try {
           const result = await getRandomUnvotedCaption();
-          if (result.caption) {
-            setPreloadedCaption(result.caption);
-          }
+          if (result.caption) setPreloadedCaption(result.caption);
         } catch (err) {
           console.error('Background preload error:', err);
         }
       }, 100);
-    } catch (err: any) {
+    } catch {
       setError('Failed to load next caption');
     } finally {
       setIsLoadingNext(false);
     }
   };
 
-  const goBack = async () => {
+  const goBack = () => {
     if (!canGoBack) return;
-    
     setError(null);
     setCurrentIndex(prev => prev - 1);
   };
 
-  const goForward = async () => {
+  const goForward = () => {
     if (!canGoForward) return;
-    
     setError(null);
     setCurrentIndex(prev => prev + 1);
   };
 
   const skipCaption = async () => {
     if (currentIndex === history.length - 1) {
-      // We're at the end, load a new caption
       await loadNextCaption();
     } else {
-      // Move to next in history
       setCurrentIndex(prev => prev + 1);
     }
   };
 
   if (!currentItem) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <p className="text-gray-500 dark:text-gray-400 mb-4">
-          No captions available to vote on.
+      <div className="flex flex-col items-center justify-center py-16 gap-6">
+        <div className="text-6xl animate-wiggle">😴</div>
+        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">
+          No captions available right now.
         </p>
         <button
           onClick={loadNextCaption}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition-all shadow-md"
         >
-          Load First Caption
+          Try Again
         </button>
       </div>
     );
@@ -196,104 +199,112 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
   return (
     <div className="w-full max-w-3xl mx-auto">
       {error && (
-        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl animate-pop-in">
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
         </div>
       )}
 
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-lg bg-white dark:bg-gray-900">
+      {/* Caption card */}
+      <div className="rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+
+        {/* Image area */}
         {caption.images?.url && (
-          <div className="relative w-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center" style={{ height: '500px' }}>
+          <div
+            className="relative w-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden"
+            style={{ height: '500px' }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={caption.images.url}
               alt={caption.images.image_description || 'Caption image'}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain transition-opacity duration-300"
             />
-          </div>
-        )}
-
-        <div className="p-6">
-          <div className="mb-4" style={{ minHeight: '100px' }}>
             {caption.is_featured && (
-              <span className="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded mb-2">
+              <span className="absolute top-3 right-3 px-3 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow-md">
                 ⭐ Featured
               </span>
             )}
-            <div className="overflow-y-auto" style={{ maxHeight: '80px' }}>
-              <p className="text-lg text-gray-900 dark:text-white font-medium">
+          </div>
+        )}
+
+        <div className="p-6 space-y-5">
+          {/* Caption text */}
+          <div className="relative rounded-xl bg-gray-50 dark:bg-gray-800/60 p-4 border border-gray-100 dark:border-gray-700" style={{ minHeight: '100px' }}>
+            <span className="absolute -top-3 left-4 text-3xl leading-none text-blue-300 dark:text-blue-500 select-none">"</span>
+            <div className="overflow-y-auto pl-2" style={{ maxHeight: '80px' }}>
+              <p className="text-lg text-gray-900 dark:text-white font-medium leading-relaxed">
                 {caption.content || '(No caption text)'}
               </p>
             </div>
+            <span className="absolute -bottom-3 right-4 text-3xl leading-none text-blue-300 dark:text-blue-500 select-none">"</span>
           </div>
 
-          <div className="flex items-center justify-center gap-6 mb-4">
+          {/* Vote buttons */}
+          <div className="relative flex items-center justify-center gap-6 py-2">
+            {/* Floating emoji burst */}
+            {floatEmoji && (
+              <div
+                key={floatEmoji.key}
+                className="absolute top-0 left-1/2 -translate-x-1/2 text-5xl pointer-events-none z-20 animate-float-up"
+              >
+                {floatEmoji.emoji}
+              </div>
+            )}
+
+            {/* Downvote */}
             <button
               onClick={() => handleVote(-1)}
               disabled={isPending || isLoadingNext}
-              className={`flex flex-col items-center gap-2 px-6 py-4 rounded-lg transition-all w-32 ${
-                voteValue === -1
-                  ? 'bg-red-500 text-white scale-105'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`vote-btn vote-btn-down flex flex-col items-center gap-2 px-6 py-4 rounded-2xl w-32 font-semibold text-base transition-all
+                ${voteValue === -1
+                  ? 'selected bg-red-500 text-white scale-105'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500'
+                }
+                ${downBounce ? 'animate-vote-shake' : ''}
+                disabled:opacity-40 disabled:cursor-not-allowed`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-base font-semibold">Downvote</span>
+              <span className="text-2xl">{voteValue === -1 ? '😑' : '👎'}</span>
+              <span>Not funny</span>
             </button>
 
+            {/* Upvote */}
             <button
               onClick={() => handleVote(1)}
               disabled={isPending || isLoadingNext}
-              className={`flex flex-col items-center gap-2 px-6 py-4 rounded-lg transition-all w-32 ${
-                voteValue === 1
-                  ? 'bg-green-500 text-white scale-105'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`vote-btn vote-btn-up flex flex-col items-center gap-2 px-6 py-4 rounded-2xl w-32 font-semibold text-base transition-all
+                ${voteValue === 1
+                  ? 'selected bg-green-500 text-white scale-105'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-500'
+                }
+                ${upBounce ? 'animate-vote-bounce' : ''}
+                disabled:opacity-40 disabled:cursor-not-allowed`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-base font-semibold">Upvote</span>
+              <span className="text-2xl">{voteValue === 1 ? '😂' : '👍'}</span>
+              <span>LOL!</span>
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
+          {/* Navigation bar */}
+          <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-800">
             <button
               onClick={goBack}
               disabled={!canGoBack || isPending || isLoadingNext}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
               Previous
             </button>
 
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {currentIndex + 1} / {history.length}
-              {voteValue && (
-                <span className="ml-2 text-xs">
-                  (voted: {voteValue === 1 ? '👍' : '👎'})
+            {/* Counter */}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                {currentIndex + 1} / {history.length}
+              </span>
+              {voteValue !== null && (
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  you voted {voteValue === 1 ? '😂 funny' : '😑 meh'}
                 </span>
               )}
             </div>
@@ -302,10 +313,10 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
               <button
                 onClick={goForward}
                 disabled={isPending || isLoadingNext}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Next
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
               </button>
@@ -313,30 +324,23 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
               <button
                 onClick={skipCaption}
                 disabled={isPending || isLoadingNext}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
               >
-                {isLoadingNext ? 'Loading...' : 'Skip'}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
+                {isLoadingNext ? '⏳ Loading…' : 'Skip →'}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p>Vote on this caption, and the next one will appear automatically!</p>
-        <p className="mt-1">You can always go back to change your previous votes.</p>
+      {/* Footer hint */}
+      <div className="mt-5 text-center text-sm text-gray-400 dark:text-gray-500 space-y-1">
+        <p>Vote and the next caption loads automatically. You can always go back.</p>
         {isPreloading && (
-          <p className="mt-2 text-xs text-blue-500 dark:text-blue-400">
-            ⏳ Preloading next caption...
-          </p>
+          <p className="text-xs text-blue-400 dark:text-blue-500">⏳ Preloading next one…</p>
         )}
-        {preloadedCaption && (
-          <p className="mt-2 text-xs text-green-500 dark:text-green-400">
-            ✓ Next caption ready!
-          </p>
+        {preloadedCaption && !isPreloading && (
+          <p className="text-xs text-green-500 dark:text-green-400">✓ Next caption is ready!</p>
         )}
       </div>
     </div>

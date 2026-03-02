@@ -4,7 +4,6 @@ import { getVotedCaptionHistory } from '../captions/actions';
 import Link from 'next/link';
 import { logout } from '../actions';
 import VotedHistoryGrid from '../components/VotedHistoryGrid';
-
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default async function VotedHistoryPage({
@@ -26,8 +25,8 @@ export default async function VotedHistoryPage({
   const historyData = await getVotedCaptionHistory(currentPage, 20);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <div className="flex min-h-screen w-full max-w-7xl flex-col gap-8 py-16 px-8 bg-white dark:bg-black">
+    <main className="flex min-h-screen items-center justify-center bg-[--background] font-sans dark:bg-[--background]">
+      <div className="flex min-h-screen w-full max-w-7xl flex-col gap-8 py-16 px-8 bg-[--background] dark:bg-[--background]">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
@@ -40,7 +39,7 @@ export default async function VotedHistoryPage({
                   : 'No votes yet'}
               </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <Link 
                 href="/captions"
                 className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"

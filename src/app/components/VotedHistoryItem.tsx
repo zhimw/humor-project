@@ -34,24 +34,26 @@ export default function VotedHistoryItem({ caption: initialCaption }: VotedHisto
   const [userVote, setUserVote] = useState<number | null>(initialCaption.userVote);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [upBounce, setUpBounce] = useState(false);
+  const [downBounce, setDownBounce] = useState(false);
 
   const handleVote = async (voteValue: 1 | -1) => {
     const oldVote = userVote;
-    
-    // Optimistic update
-    if (oldVote === voteValue) {
-      setUserVote(null); // Toggle off
+
+    if (voteValue === 1) {
+      setUpBounce(true);
+      setTimeout(() => setUpBounce(false), 450);
     } else {
-      setUserVote(voteValue); // Change vote
+      setDownBounce(true);
+      setTimeout(() => setDownBounce(false), 450);
     }
-    
+
+    setUserVote(oldVote === voteValue ? null : voteValue);
     setError(null);
 
     startTransition(async () => {
       const result = await submitVote(initialCaption.id, voteValue);
-      
       if (!result.success) {
-        // Revert on error
         setUserVote(oldVote);
         setError(result.error || 'Failed to update vote');
         setTimeout(() => setError(null), 3000);
@@ -60,66 +62,72 @@ export default function VotedHistoryItem({ caption: initialCaption }: VotedHisto
   };
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-white dark:bg-gray-900">
+    <div className="humor-card border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm">
+      {/* Image */}
       {initialCaption.images?.url && (
-        <div className="relative w-full bg-gray-100 dark:bg-gray-800" style={{ height: '200px' }}>
+        <div className="relative w-full bg-gray-100 dark:bg-gray-800 overflow-hidden" style={{ height: '200px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={initialCaption.images.url}
             alt={initialCaption.images.image_description || 'Caption image'}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          {initialCaption.is_featured && (
+            <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-full shadow">
+              ⭐
+            </span>
+          )}
         </div>
       )}
-      
-      <div className="p-4">
-        <div className="mb-3" style={{ minHeight: '60px' }}>
-          <p className="text-sm text-gray-900 dark:text-white line-clamp-3">
+
+      <div className="p-4 space-y-3">
+        {/* Caption text */}
+        <div style={{ minHeight: '60px' }}>
+          <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-3 leading-relaxed">
             {initialCaption.content || '(No caption text)'}
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2 mb-2">
+        {/* Vote buttons */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => handleVote(1)}
             disabled={isPending}
-            className={`flex items-center gap-1 px-3 py-2 rounded transition-all flex-1 justify-center ${
-              userVote === 1
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`vote-btn vote-btn-up flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold flex-1 justify-center transition-all
+              ${userVote === 1
+                ? 'selected bg-green-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-600'
+              }
+              ${upBounce ? 'animate-vote-bounce' : ''}
+              disabled:opacity-40 disabled:cursor-not-allowed`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
-            <span className="text-xs font-semibold">Up</span>
+            <span>{userVote === 1 ? '😂' : '👍'}</span>
+            <span>Funny</span>
           </button>
 
           <button
             onClick={() => handleVote(-1)}
             disabled={isPending}
-            className={`flex items-center gap-1 px-3 py-2 rounded transition-all flex-1 justify-center ${
-              userVote === -1
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`vote-btn vote-btn-down flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold flex-1 justify-center transition-all
+              ${userVote === -1
+                ? 'selected bg-red-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600'
+              }
+              ${downBounce ? 'animate-vote-shake' : ''}
+              disabled:opacity-40 disabled:cursor-not-allowed`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            <span className="text-xs font-semibold">Down</span>
+            <span>{userVote === -1 ? '😑' : '👎'}</span>
+            <span>Meh</span>
           </button>
         </div>
 
         {error && (
-          <p className="text-xs text-red-500 dark:text-red-400 text-center mt-1">
-            {error}
-          </p>
+          <p className="text-xs text-red-500 dark:text-red-400 text-center">{error}</p>
         )}
 
         {initialCaption.voteTimestamp && (
-          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-            Voted: {new Date(initialCaption.voteTimestamp).toLocaleString(undefined, {
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            {new Date(initialCaption.voteTimestamp).toLocaleString(undefined, {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
@@ -128,14 +136,6 @@ export default function VotedHistoryItem({ caption: initialCaption }: VotedHisto
               hour12: true,
             })}
           </p>
-        )}
-
-        {initialCaption.is_featured && (
-          <div className="mt-2 text-center">
-            <span className="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded">
-              ⭐ Featured
-            </span>
-          </div>
         )}
       </div>
     </div>

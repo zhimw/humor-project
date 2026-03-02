@@ -4,7 +4,6 @@ import CaptionVotingInterface from '../components/CaptionVotingInterface';
 import Link from 'next/link';
 import { logout } from '../actions';
 import { getRandomUnvotedCaption } from './actions';
-
 export default async function CaptionsPage() {
   const supabase = await createClient();
 
@@ -19,8 +18,8 @@ export default async function CaptionsPage() {
   const { caption: initialCaption, error: fetchError } = await getRandomUnvotedCaption();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <div className="flex min-h-screen w-full max-w-6xl flex-col gap-8 py-16 px-8 bg-white dark:bg-black">
+    <main className="flex min-h-screen items-center justify-center bg-[--background] font-sans dark:bg-[--background]">
+      <div className="flex min-h-screen w-full max-w-6xl flex-col gap-8 py-16 px-8 bg-[--background] dark:bg-[--background]">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
@@ -31,7 +30,7 @@ export default async function CaptionsPage() {
                 Welcome, {user.email}
               </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <Link 
                 href="/voted-history"
                 className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"

@@ -1,9 +1,119 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { generatePresignedUrl, registerImageUrl, generateCaptions } from './actions';
 import type { GeneratedCaption } from './actions';
+// ---------------------------------------------------------------------------
+// Confetti burst
+// ---------------------------------------------------------------------------
+
+const CONFETTI_COLORS = [
+  '#f59e0b', '#ef4444', '#3b82f6', '#10b981',
+  '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
+];
+
+type Particle = {
+  x: number; y: number;
+  vx: number; vy: number;
+  color: string;
+  size: number;
+  rotation: number;
+  rotationSpeed: number;
+  opacity: number;
+  shape: 'rect' | 'circle' | 'star';
+};
+
+function useConfetti() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
+
+  const burst = useCallback((originX: number, originY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles: Particle[] = Array.from({ length: 120 }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 4 + Math.random() * 14;
+      return {
+        x: originX,
+        y: originY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 6,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        size: 6 + Math.random() * 8,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 12,
+        opacity: 1,
+        shape: (['rect', 'circle', 'star'] as const)[Math.floor(Math.random() * 3)],
+      };
+    });
+
+    const drawStar = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+        const b = (i * 4 * Math.PI) / 5 + (2 * Math.PI) / 5 - Math.PI / 2;
+        if (i === 0) ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a));
+        else ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
+        ctx.lineTo(x + (r / 2) * Math.cos(b), y + (r / 2) * Math.sin(b));
+      }
+      ctx.closePath();
+    };
+
+    const tick = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+
+      for (const p of particles) {
+        p.vy += 0.35;          // gravity
+        p.vx *= 0.98;          // air resistance
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotationSpeed;
+        p.opacity -= 0.013;
+        if (p.opacity <= 0) continue;
+        alive = true;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        ctx.fillStyle = p.color;
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+
+        if (p.shape === 'circle') {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.shape === 'star') {
+          drawStar(ctx, 0, 0, p.size / 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        }
+        ctx.restore();
+      }
+
+      if (alive) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  return { canvasRef, burst };
+}
 
 type Step = 'idle' | 'uploading' | 'registering' | 'generating' | 'done' | 'error';
 
@@ -20,12 +130,14 @@ const STEP_LABELS: Record<Step, string> = {
 
 export default function UploadPage() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<Step>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [captions, setCaptions] = useState<GeneratedCaption[]>([]);
   const [cdnUrl, setCdnUrl] = useState<string>('');
+  const { canvasRef, burst } = useConfetti();
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
@@ -110,12 +222,27 @@ export default function UploadPage() {
 
     setCaptions(generated);
     setStep('done');
+
+    // Fire confetti burst from the center of the screen, then scroll to results
+    requestAnimationFrame(() => {
+      burst(window.innerWidth / 2, window.innerHeight / 2);
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    });
   }
 
   const isProcessing = step === 'uploading' || step === 'registering' || step === 'generating';
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-black py-12 px-4">
+    <main className="min-h-screen bg-[--background] dark:bg-[--background] py-12 px-4">
+      {/* Confetti canvas — sits above everything, pointer-events off so it doesn't block clicks */}
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 z-50 pointer-events-none"
+        style={{ width: '100vw', height: '100vh' }}
+      />
+
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -208,7 +335,9 @@ export default function UploadPage() {
 
         {/* Results */}
         {step === 'done' && captions.length > 0 && (
-          <CaptionResults captions={captions} imageUrl={cdnUrl} />
+          <div ref={resultsRef}>
+            <CaptionResults captions={captions} imageUrl={cdnUrl} />
+          </div>
         )}
 
         {step === 'done' && captions.length === 0 && (
@@ -260,40 +389,64 @@ function ProgressSteps({ step }: { step: Step }) {
 function CaptionResults({ captions, imageUrl }: { captions: GeneratedCaption[]; imageUrl: string }) {
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">
-        Generated Captions
-      </h2>
+      {/* Celebratory header */}
+      <div
+        className="text-center space-y-1"
+        style={{ animation: 'header-pop 0.6s cubic-bezier(0.36,0.07,0.19,0.97) forwards' }}
+      >
+        <div className="text-5xl" style={{ display: 'inline-block', animation: 'wiggle 0.5s ease-in-out 0.6s 3' }}>
+          🎉
+        </div>
+        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">
+          Your captions are ready!
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          The AI has spoken. Judge accordingly.
+        </p>
+      </div>
 
+      {/* Uploaded image */}
       {imageUrl && (
         <img
           src={imageUrl}
           alt="Uploaded"
-          className="w-full max-h-64 object-contain rounded-xl border border-gray-200 dark:border-gray-700"
+          className="w-full max-h-64 object-contain rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-md"
+          style={{ animation: 'card-slide-up 0.4s ease-out 0.2s both' }}
         />
       )}
 
+      {/* Caption cards — staggered */}
       <div className="space-y-3">
         {captions.map((caption, idx) => (
           <div
             key={caption.id ?? idx}
-            className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
+            className="p-5 bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-sm"
+            style={{
+              animation: `caption-reveal 0.55s cubic-bezier(0.36,0.07,0.19,0.97) ${0.35 + idx * 0.12}s both`,
+            }}
           >
-            <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-              Caption {idx + 1}
-            </span>
-            <p className="mt-1 text-gray-800 dark:text-gray-200 text-base leading-relaxed">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">
+                {['😂', '🤣', '💀', '😭', '🙃'][idx % 5]}
+              </span>
+              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                Caption {idx + 1}
+              </span>
+            </div>
+            <p className="text-gray-800 dark:text-gray-200 text-base leading-relaxed font-medium">
               {caption.content}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="text-center">
+      <div className="text-center pt-2">
         <Link
           href="/captions"
-          className="inline-block mt-2 text-sm text-blue-500 hover:underline"
+          className="inline-block px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition-all shadow-md"
+          style={{ animation: `caption-reveal 0.5s ease-out ${0.35 + captions.length * 0.12}s both` }}
         >
-          Go vote on captions →
+          Go vote on more captions →
         </Link>
       </div>
     </div>

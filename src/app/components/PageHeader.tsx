@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 
 const LoginButton = dynamic(() => import('./LoginButton'), { ssr: false });
 const AuthStatus = dynamic(() => import('./AuthStatus'), { ssr: false });
-
 export default function PageHeader() {
   const [isMounted, setIsMounted] = useState(false);
 

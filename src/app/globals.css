@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* Class-based dark mode — toggled by JS via .dark on <html> */
+@variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
+  --background: #fffbeb;
   --foreground: #171717;
+}
+
+.dark {
+  --background: #0d1b2a;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,15 +20,173 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  scroll-behavior: smooth;
 }
+
+/* =====================================================================
+   KEYFRAMES
+   ===================================================================== */
+
+@keyframes vote-bounce {
+  0%   { transform: scale(1.05); }
+  30%  { transform: scale(1.28); }
+  60%  { transform: scale(0.96); }
+  80%  { transform: scale(1.12); }
+  100% { transform: scale(1.08); }
+}
+
+@keyframes vote-shake {
+  0%   { transform: scale(1.05) translateX(0)    rotate(0); }
+  20%  { transform: scale(1.05) translateX(-6px) rotate(-3deg); }
+  40%  { transform: scale(1.05) translateX(6px)  rotate(3deg); }
+  60%  { transform: scale(1.05) translateX(-4px) rotate(-1.5deg); }
+  80%  { transform: scale(1.05) translateX(4px)  rotate(1.5deg); }
+  100% { transform: scale(1.08) translateX(0)    rotate(0); }
+}
+
+@keyframes float-up {
+  0%   { transform: translateY(0)    scale(1);   opacity: 1; }
+  60%  { transform: translateY(-50px) scale(1.6); opacity: 0.9; }
+  100% { transform: translateY(-90px) scale(2);   opacity: 0; }
+}
+
+@keyframes pop-in {
+  0%   { transform: scale(0.7) rotate(-5deg); opacity: 0; }
+  55%  { transform: scale(1.1) rotate(2deg);  opacity: 1; }
+  100% { transform: scale(1)   rotate(0deg);  opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 6px  rgba(255, 255, 255, 0.35),
+      0 0 16px rgba(255, 255, 255, 0.18);
+  }
+  50% {
+    text-shadow:
+      0 0 10px rgba(255, 255, 255, 0.55),
+      0 0 24px rgba(255, 255, 255, 0.30),
+      0 0 40px rgba(255, 255, 255, 0.12);
+  }
+}
+
+@keyframes card-slide-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes caption-reveal {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.95); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes header-pop {
+  0%   { opacity: 0; transform: scale(0.6) rotate(-6deg); }
+  55%  { opacity: 1; transform: scale(1.15) rotate(3deg); }
+  75%  { transform: scale(0.97) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes shimmer-border {
+  0%   { border-color: #3b82f6; box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  40%  { border-color: #a855f7; box-shadow: 0 0 18px 4px rgba(168,85,247,0.35); }
+  70%  { border-color: #ec4899; box-shadow: 0 0 12px 2px rgba(236,72,153,0.25); }
+  100% { border-color: #3b82f6; box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
+}
+
+@keyframes theme-spin {
+  from { transform: rotate(0deg) scale(1); }
+  to   { transform: rotate(360deg) scale(1); }
+}
+
+/* =====================================================================
+   ANIMATION UTILITY CLASSES
+   ===================================================================== */
+
+.animate-vote-bounce { animation: vote-bounce  0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards; }
+.animate-vote-shake  { animation: vote-shake   0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards; }
+.animate-float-up    { animation: float-up     0.75s ease-out forwards; }
+.animate-pop-in      { animation: pop-in       0.35s ease-out forwards; }
+.animate-card-slide  { animation: card-slide-up 0.4s ease-out forwards; }
+
+/* =====================================================================
+   GLOW TEXT  (dark mode only)
+   ===================================================================== */
+
+/* Light mode: plain */
+.glow-text {}
+
+/* Dark mode: slow breathing glow */
+.dark .glow-text {
+  animation: glow-pulse 3.5s ease-in-out infinite;
+}
+
+/* =====================================================================
+   VOTE BUTTONS
+   ===================================================================== */
+
+.vote-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+
+/* Satisfying press-down feel */
+.vote-btn:active:not(:disabled) {
+  transform: scale(0.91) !important;
+}
+
+/* Selected — upvote glow */
+.vote-btn-up.selected {
+  box-shadow:
+    0 0 0 3px rgba(34, 197, 94, 0.4),
+    0 6px 22px rgba(34, 197, 94, 0.35);
+}
+
+/* Selected — downvote glow */
+.vote-btn-down.selected {
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.4),
+    0 6px 22px rgba(239, 68, 68, 0.35);
+}
+
+.dark .vote-btn-up.selected {
+  box-shadow:
+    0 0 0 3px rgba(34, 197, 94, 0.55),
+    0 6px 26px rgba(34, 197, 94, 0.5);
+}
+
+.dark .vote-btn-down.selected {
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.55),
+    0 6px 26px rgba(239, 68, 68, 0.5);
+}
+
+/* =====================================================================
+   CARDS
+   ===================================================================== */
+
+.humor-card {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.humor-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
+}
+
+.dark .humor-card:hover {
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+
+

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import type { Session } from "@supabase/supabase-js";
 import Link from "next/link";
-
 export default function AuthStatus() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
