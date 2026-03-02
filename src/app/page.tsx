@@ -29,11 +29,11 @@ export default async function Home() {
                   Welcome to the Humor Project
                 </h2>
                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Sign in with your Google account to start voting on captions.
+                  Sign in with your Google account to start voting on captions, and generate captions for images you uploaded.
                 </p>
                 <div className="pt-4">
                   <p className="text-sm text-gray-500 dark:text-gray-500">
-                    Once logged in, you'll be able to vote on humorous captions and view your voting history.
+                    By Zhimei Wang
                   </p>
                 </div>
               </div>
@@ -66,7 +66,20 @@ export default async function Home() {
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6 mt-12">
+                <div className="grid md:grid-cols-3 gap-6 mt-12">
+                  <Link
+                    href="/upload"
+                    className="group p-8 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-green-500 dark:hover:border-green-500 hover:shadow-xl transition-all bg-white dark:bg-gray-900"
+                  >
+                    <div className="text-5xl mb-4">📸</div>
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-green-500">
+                      Upload & Generate
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Upload your own image and get AI-generated captions
+                    </p>
+                  </Link>
+
                   <Link
                     href="/captions"
                     className="group p-8 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-xl transition-all bg-white dark:bg-gray-900"

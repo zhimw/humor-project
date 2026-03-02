@@ -23,6 +23,7 @@ type Caption = {
   } | null;
   voteScore: number;
   userVote: number | null;
+  voteTimestamp?: string;
 };
 
 type VotedHistoryGridProps = {

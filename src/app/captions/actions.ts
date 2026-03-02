@@ -136,6 +136,7 @@ type CaptionWithImage = {
   } | null;
   voteScore: number;
   userVote: number | null;
+  voteTimestamp?: string;
 };
 
 /**
@@ -333,12 +334,16 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
   }
 
   try {
-    // Get all votes by this user with caption data
-    const { data: votesData, error: votesError, count } = await supabase
+    // Fetch ALL votes first, then sort and paginate client-side.
+    // We cannot use .range() before sorting because modified_datetime_utc cannot be
+    // used in a server-side ORDER BY via Supabase's JS client, so server-side pagination
+    // on an unsorted result would scatter items across pages incorrectly.
+    const { data: allVotesData, error: votesError } = await supabase
       .from('caption_votes')
       .select(`
         vote_value,
         created_datetime_utc,
+        modified_datetime_utc,
         caption_id,
         captions (
           id,
@@ -359,12 +364,22 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
             image_description
           )
         )
-      `, { count: 'exact' })
-      .eq('profile_id', user.id)
-      .order('created_datetime_utc', { ascending: false })
-      .range((page - 1) * perPage, page * perPage - 1);
+      `)
+      .eq('profile_id', user.id);
 
     if (votesError) throw votesError;
+
+    // Sort all votes by most recent activity (modified takes priority over created)
+    allVotesData?.sort((a: any, b: any) => {
+      const aTime = a.modified_datetime_utc ?? a.created_datetime_utc;
+      const bTime = b.modified_datetime_utc ?? b.created_datetime_utc;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+
+    const totalCount = allVotesData?.length ?? 0;
+
+    // Slice the correct page after sorting
+    const votesData = allVotesData?.slice((page - 1) * perPage, page * perPage);
 
     if (!votesData || votesData.length === 0) {
       return { 
@@ -391,6 +406,8 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
 
         const voteScore = allVotes?.reduce((sum, v) => sum + v.vote_value, 0) || 0;
 
+        const voteTimestamp = vote.modified_datetime_utc ?? vote.created_datetime_utc;
+
         return {
           id: caption.id,
           created_datetime_utc: caption.created_datetime_utc,
@@ -403,17 +420,18 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
           profiles: Array.isArray(caption.profiles) ? caption.profiles[0] : caption.profiles,
           images: Array.isArray(caption.images) ? caption.images[0] : caption.images,
           voteScore,
-          userVote: vote.vote_value
+          userVote: vote.vote_value,
+          voteTimestamp
         };
       })
     );
 
-    const validCaptions = captionsWithNull.filter((c): c is CaptionWithImage => c !== null);
-    const totalPages = Math.ceil((count || 0) / perPage);
+    const validCaptions = captionsWithNull.filter((c) => c !== null) as CaptionWithImage[];
+    const totalPages = Math.ceil(totalCount / perPage);
 
     return {
       captions: validCaptions,
-      totalCount: count || 0,
+      totalCount,
       currentPage: page,
       totalPages
     };

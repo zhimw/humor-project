@@ -1,9 +1,161 @@
+# Assignment #5: Image Upload & Caption Generation - Agent Implementation Report
+
+> **Previous work**: Assignment #4 (Caption Voting System) is documented in the section at the bottom of this file.
+
+## Project Overview
+This document describes how an AI agent (claude-4.6-sonnet-medium) helped implement an image upload and AI caption generation feature for the Humor Project, integrating with the `https://api.almostcrackd.ai` staging REST API.
+
+## Assignment Requirements
+The goal was to:
+1. Allow logged-in users to upload their own images
+2. Send images through a 4-step pipeline to generate AI captions
+3. Display the resulting captions to the user
+4. Use the `https://api.almostcrackd.ai` REST API for all pipeline steps
+5. Pass a valid JWT access token on every API request
+
+## What Was Built
+
+### Image Upload & Caption Generation Pipeline
+
+#### 1. **Pipeline Server Actions** (`src/app/upload/actions.ts`)
+The agent created three server-side functions that call the caption pipeline API, each injecting the user's JWT access token from their Supabase session:
+
+- **`generatePresignedUrl(contentType)`**
+  - Calls `POST /pipeline/generate-presigned-url`
+  - Returns a signed S3 upload URL (`presignedUrl`) and a public CDN URL (`cdnUrl`)
+  - Token is read server-side — never exposed to the browser
+
+- **`registerImageUrl(cdnUrl)`**
+  - Calls `POST /pipeline/upload-image-from-url` with `{ imageUrl, isCommonUse: false }`
+  - Returns an `imageId` UUID used in the final step
+
+- **`generateCaptions(imageId)`**
+  - Calls `POST /pipeline/generate-captions` with `{ imageId }`
+  - Returns an array of generated caption records
+
+#### 2. **Upload Page** (`src/app/upload/page.tsx`)
+A fully interactive client component orchestrating all four pipeline steps:
+
+- **Drag & Drop / Click to Browse**: File picker accepting JPEG, PNG, WebP, GIF, HEIC
+- **Image Preview**: Shows selected image before uploading
+- **S3 Direct Upload (Step 2)**: `PUT` with raw file bytes runs client-side directly to the S3 presigned URL (required — server cannot proxy binary efficiently)
+- **Animated Progress Steps**: Three-stage indicator (Upload → Register → Generate) that animates through each phase with pulsing active state
+- **Caption Results**: Displays uploaded image + all returned captions as styled cards
+- **Error Handling**: Per-stage error messages with clear feedback
+
+#### 3. **Homepage Update** (`src/app/page.tsx`)
+- Added "Upload & Generate" card (green) to the homepage grid
+- Grid expanded from 2 to 3 columns on desktop
+
+#### 4. **Navigation Update** (`src/app/components/AuthStatus.tsx`)
+- Added "Upload & Generate" link to the authenticated nav bar
+
+### The 4-Step Pipeline Flow
+
+```
+1. Client selects image
+   → server action: POST /pipeline/generate-presigned-url
+   ← { presignedUrl, cdnUrl }
+
+2. Client PUTs raw bytes directly to presignedUrl (S3)
+   ← 200 OK
+
+3. server action: POST /pipeline/upload-image-from-url { imageUrl: cdnUrl }
+   ← { imageId }
+
+4. server action: POST /pipeline/generate-captions { imageId }
+   ← [ { id, content, ... }, ... ]
+```
+
+### Technical Decisions
+
+#### JWT Token Handling
+The user's Supabase session `access_token` is read in server actions via `supabase.auth.getSession()`. It is never sent to or stored on the client, satisfying the security requirement of keeping bearer tokens server-side.
+
+#### Split Client/Server Responsibilities
+| Step | Where | Why |
+|------|-------|-----|
+| Get presigned URL | Server action | Needs JWT token |
+| PUT file to S3 | Client (`fetch`) | Must send binary body; server action cannot relay file efficiently |
+| Register image URL | Server action | Needs JWT token |
+| Generate captions | Server action | Needs JWT token |
+
+#### Supported Content Types
+`image/jpeg`, `image/jpg`, `image/png`, `image/webp`, `image/gif`, `image/heic` — validated client-side before upload begins.
+
+### Files Created
+```
+src/app/
+└── upload/
+    ├── actions.ts    # generatePresignedUrl, registerImageUrl, generateCaptions
+    └── page.tsx      # Full upload UI with drag-and-drop, progress, and results
+```
+
+### Files Modified
+```
+src/app/
+├── page.tsx                        # Added Upload & Generate card (3-column grid)
+└── components/
+    └── AuthStatus.tsx              # Added Upload & Generate nav link
+```
+
+## Challenges Encountered
+
+### Challenge 1: Binary Upload Cannot Go Through Server Actions
+**Issue**: Server actions serialize their arguments as JSON — they cannot receive or relay a raw `File` object to S3.
+
+**Solution**: Step 2 (the S3 PUT) runs entirely on the client using `fetch()` with the presigned URL. Steps 1, 3, and 4 remain as server actions to keep the JWT token off the client.
+
+### Challenge 2: Content-Type Must Match Across Steps
+**Issue**: S3 presigned URLs are signed for a specific content type. A mismatch causes a 403.
+
+**Solution**: The `file.type` from the browser `File` object is passed to both `generatePresignedUrl` (Step 1) and the `PUT` request (Step 2), ensuring consistency.
+
+## Testing & Validation
+
+### Build Verification
+- TypeScript compilation: ✅ PASSED
+- ESLint checks: ✅ NO ERRORS
+- Production build: ✅ SUCCESS (`npm run build`)
+
+### Functionality Tested
+- ✅ File picker and drag-and-drop work
+- ✅ Unsupported file types are rejected before upload
+- ✅ Progress steps animate through each phase
+- ✅ Captions display correctly after generation
+- ✅ Authentication required — unauthenticated users cannot call server actions
+- ✅ Navigation links updated on homepage and nav bar
+
+## Key Learnings
+
+1. **Presigned URL Pattern**: S3 presigned URLs let the browser upload directly to object storage without proxying through the app server, avoiding memory/timeout constraints.
+
+2. **Split Server/Client for Security**: Keeping bearer tokens in server actions while letting the client handle binary transfer is a clean separation that satisfies both security and practicality.
+
+3. **Multi-Step API Pipelines in Next.js**: Server actions compose naturally into sequential pipeline steps, with each action independently verifiable and independently error-handled.
+
+## Conclusion
+
+The agent successfully implemented an end-to-end image upload and AI caption generation feature that:
+- ✅ Lets authenticated users upload images via drag-and-drop or file picker
+- ✅ Executes all 4 pipeline steps against `https://api.almostcrackd.ai`
+- ✅ Keeps JWT tokens server-side at all times
+- ✅ Displays AI-generated captions with the uploaded image
+- ✅ Provides clear per-step progress feedback and error handling
+- ✅ Integrates seamlessly into the existing app navigation
+
+Total new files: 2
+Total modified files: 2
+Build status: ✅ SUCCESS
+
+---
+
 # Assignment #4: Caption Voting System - Agent Implementation Report
 
 ## Project Overview
 This document describes how an AI agent (Claude Sonnet 4.5) helped implement a complete caption voting system for the Humor Project, transforming it from a read-only application into an interactive platform where users can vote on captions.
 
-## Assignment Requirements
+## Assignment Requirements (Assignment #4)
 The goal was to:
 1. Allow logged-in users to vote on captions (upvote/downvote)
 2. Store votes in the `caption_votes` database table
@@ -11,7 +163,7 @@ The goal was to:
 4. Enforce authentication - only logged-in users can vote
 5. Do NOT modify any RLS (Row Level Security) policies
 
-## What Was Built
+## What Was Built (Assignment #4)
 
 ### Core Voting System
 

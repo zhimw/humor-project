@@ -46,6 +46,9 @@ export default function AuthStatus() {
       <div className="text-sm text-gray-700 dark:text-gray-300">
         <p>Signed in as {session.user.email}.</p>
         <div className="flex gap-4 mt-2">
+          <Link href="/upload" className="text-green-500 hover:underline">
+            Upload & Generate
+          </Link>
           <Link href="/captions" className="text-blue-500 hover:underline">
             Vote on Captions
           </Link>

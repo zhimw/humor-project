@@ -23,6 +23,7 @@ type Caption = {
   } | null;
   voteScore: number;
   userVote: number | null;
+  voteTimestamp?: string;
 };
 
 type VotedHistoryItemProps = {
@@ -113,6 +114,19 @@ export default function VotedHistoryItem({ caption: initialCaption }: VotedHisto
         {error && (
           <p className="text-xs text-red-500 dark:text-red-400 text-center mt-1">
             {error}
+          </p>
+        )}
+
+        {initialCaption.voteTimestamp && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+            Voted: {new Date(initialCaption.voteTimestamp).toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })}
           </p>
         )}
 
