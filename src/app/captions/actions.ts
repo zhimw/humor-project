@@ -167,7 +167,7 @@ export async function getRandomUnvotedCaption(): Promise<{
 
     const votedCaptionIds = new Set(votedCaptions?.map(v => v.caption_id) || []);
 
-    // Fetch all public captions with left joins (use left join instead of inner)
+    // Fetch all public captions that actually have caption text, with left joins (use left join instead of inner)
     const { data, error } = await supabase
       .from('captions')
       .select(`
@@ -189,7 +189,10 @@ export async function getRandomUnvotedCaption(): Promise<{
           image_description
         )
       `)
-      .eq('is_public', true);
+      .eq('is_public', true)
+      // Ensure we don't pick rows with NULL content; we will further
+      // filter out empty/whitespace-only strings on the server below.
+      .not('content', 'is', null);
 
     if (error) {
       console.error('Error fetching captions:', error);
@@ -203,8 +206,21 @@ export async function getRandomUnvotedCaption(): Promise<{
       };
     }
 
-    // Filter out captions the user has already voted on (client-side filtering)
-    const unvotedCaptions = data.filter((caption: any) => !votedCaptionIds.has(caption.id));
+    // Filter out captions the user has already voted on AND any that have
+    // empty/whitespace-only content or missing image URLs.
+    const unvotedCaptions = data.filter((caption: any) => {
+      if (votedCaptionIds.has(caption.id)) return false;
+
+      const hasContent =
+        typeof caption.content === 'string' && caption.content.trim().length > 0;
+
+      const image =
+        Array.isArray(caption.images) ? caption.images[0] : caption.images;
+      const hasImageUrl =
+        image && typeof image.url === 'string' && image.url.trim().length > 0;
+
+      return hasContent && hasImageUrl;
+    });
 
     if (unvotedCaptions.length === 0) {
       return { caption: null, error: `You've voted on all ${data.length} available captions!` };

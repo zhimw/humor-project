@@ -419,6 +419,14 @@ CREATE TABLE public.shares (
   CONSTRAINT shares_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
   CONSTRAINT shares_share_to_destination_id_fkey FOREIGN KEY (share_to_destination_id) REFERENCES public.share_to_destinations(id)
 );
+CREATE TABLE public.sidechat_posts (
+  id uuid NOT NULL,
+  created_datetime_utc timestamp with time zone NOT NULL DEFAULT now(),
+  content text,
+  post_datetime_utc timestamp with time zone NOT NULL,
+  like_count smallint NOT NULL DEFAULT '0'::smallint,
+  CONSTRAINT sidechat_posts_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.studies (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_datetime_utc timestamp with time zone NOT NULL DEFAULT now(),
@@ -426,6 +434,7 @@ CREATE TABLE public.studies (
   description text,
   start_datetime_utc timestamp with time zone,
   end_datetime_utc timestamp with time zone,
+  is_hidden boolean NOT NULL DEFAULT false,
   CONSTRAINT studies_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.study_caption_mappings (
@@ -513,4 +522,11 @@ CREATE TABLE public.university_majors (
   name text NOT NULL UNIQUE,
   id integer NOT NULL,
   CONSTRAINT university_majors_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.whitelist_email_addresses (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_datetime_utc timestamp with time zone NOT NULL DEFAULT now(),
+  modified_datetime_utc timestamp with time zone,
+  email_address character varying NOT NULL,
+  CONSTRAINT whitelist_email_addresses_pkey PRIMARY KEY (id)
 );
