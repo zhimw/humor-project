@@ -65,7 +65,7 @@ export async function submitVote(captionId: string, voteValue: 1 | -1) {
       .from('caption_votes')
       .update({ 
         vote_value: voteValue,
-        modified_datetime_utc: new Date().toISOString()
+        modified_by_user_id: profile.id,
       })
       .eq('id', existingVote.id);
 
@@ -85,7 +85,8 @@ export async function submitVote(captionId: string, voteValue: 1 | -1) {
       caption_id: captionId,
       profile_id: profile.id,
       vote_value: voteValue,
-      created_datetime_utc: new Date().toISOString()
+      created_by_user_id: profile.id,
+      modified_by_user_id: profile.id,
     });
 
   if (insertError) {
@@ -179,7 +180,7 @@ export async function getRandomUnvotedCaption(): Promise<{
         image_id,
         is_featured,
         like_count,
-        profiles (
+        profiles!captions_profile_id_fkey (
           first_name,
           last_name,
           email
@@ -288,7 +289,7 @@ export async function getCaptionById(captionId: string): Promise<{
         image_id,
         is_featured,
         like_count,
-        profiles (
+        profiles!captions_profile_id_fkey (
           first_name,
           last_name,
           email
@@ -370,7 +371,7 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
           is_featured,
           like_count,
           created_datetime_utc,
-          profiles (
+          profiles!captions_profile_id_fkey (
             first_name,
             last_name,
             email
