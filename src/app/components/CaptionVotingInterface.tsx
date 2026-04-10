@@ -177,6 +177,33 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
     }
   };
 
+  // Keyboard shortcuts: ←/→ navigate, ↑ upvote, ↓ downvote
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isPending || isLoadingNext) return;
+      // Ignore if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goBack();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (canGoForward) goForward(); else skipCaption();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleVote(1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleVote(-1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPending, isLoadingNext, canGoBack, canGoForward, currentItem]);
+
   if (!currentItem) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-6">
@@ -336,6 +363,12 @@ export default function CaptionVotingInterface({ initialCaption }: CaptionVoting
       {/* Footer hint */}
       <div className="mt-5 text-center text-sm text-gray-400 dark:text-gray-500 space-y-1">
         <p>Vote and the next caption loads automatically. You can always go back.</p>
+        <p className="text-xs">
+          Keyboard: <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-gray-500 dark:text-gray-400">↑</kbd> funny &nbsp;
+          <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-gray-500 dark:text-gray-400">↓</kbd> not funny &nbsp;
+          <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-gray-500 dark:text-gray-400">←</kbd> back &nbsp;
+          <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-gray-500 dark:text-gray-400">→</kbd> next
+        </p>
         {isPreloading && (
           <p className="text-xs text-blue-400 dark:text-blue-500">⏳ Preloading next one…</p>
         )}

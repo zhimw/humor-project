@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import { generatePresignedUrl, registerImageUrl, generateCaptions } from './actions';
+import { submitVote } from '../captions/actions';
 import type { GeneratedCaption } from './actions';
 // ---------------------------------------------------------------------------
 // Confetti burst
@@ -118,11 +119,13 @@ function useConfetti() {
 type Step = 'idle' | 'uploading' | 'registering' | 'generating' | 'done' | 'error';
 
 const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic'];
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const STEP_LABELS: Record<Step, string> = {
   idle: '',
   uploading: 'Uploading image...',
-  registering: 'Registering image...',
+  registering: 'Processing image...',
   generating: 'Generating captions (this may take ~30s)...',
   done: 'Done!',
   error: 'Something went wrong.',
@@ -145,6 +148,12 @@ export default function UploadPage() {
 
     if (!SUPPORTED_TYPES.includes(selected.type)) {
       setErrorMsg(`Unsupported file type: ${selected.type}. Please use JPEG, PNG, WebP, GIF, or HEIC.`);
+      setStep('error');
+      return;
+    }
+
+    if (selected.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMsg(`File is too large (${(selected.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_FILE_SIZE_MB} MB.`);
       setStep('error');
       return;
     }
@@ -287,7 +296,7 @@ export default function UploadPage() {
                 Drag & drop or <span className="text-blue-500 font-medium">click to browse</span>
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                JPEG, PNG, WebP, GIF, HEIC
+                JPEG, PNG, WebP, GIF, HEIC · Max {MAX_FILE_SIZE_MB} MB
               </p>
             </div>
           )}
@@ -353,7 +362,7 @@ export default function UploadPage() {
 function ProgressSteps({ step }: { step: Step }) {
   const steps: { key: Step; label: string }[] = [
     { key: 'uploading', label: 'Upload' },
-    { key: 'registering', label: 'Register' },
+    { key: 'registering', label: 'Process Image' },
     { key: 'generating', label: 'Generate' },
   ];
 
@@ -382,6 +391,83 @@ function ProgressSteps({ step }: { step: Step }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function CaptionCard({ caption, idx }: { caption: GeneratedCaption; idx: number }) {
+  const [userVote, setUserVote] = useState<1 | -1 | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleVote(value: 1 | -1) {
+    if (!caption.id) return;
+
+    const next = userVote === value ? null : value;
+    setUserVote(next);
+
+    startTransition(async () => {
+      const result = await submitVote(caption.id as string, value);
+      if (!result.success) {
+        setUserVote(userVote);
+      }
+    });
+  }
+
+  const emojis = ['😂', '🤣', '💀', '😭', '🙃'];
+
+  return (
+    <div
+      className="p-5 bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-sm"
+      style={{
+        animation: `caption-reveal 0.55s cubic-bezier(0.36,0.07,0.19,0.97) ${0.35 + idx * 0.12}s both`,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">{emojis[idx % 5]}</span>
+        <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+          Caption {idx + 1}
+        </span>
+      </div>
+
+      <p className="text-gray-800 dark:text-gray-200 text-base leading-relaxed font-medium mb-4">
+        {caption.content}
+      </p>
+
+      {caption.id ? (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => handleVote(1)}
+            disabled={isPending}
+            aria-label="Upvote"
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all active:scale-95
+              ${userVote === 1
+                ? 'bg-green-500 border-green-500 text-white shadow-sm'
+                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-500'
+              } disabled:opacity-50`}
+          >
+            👍 Funny
+          </button>
+          <button
+            onClick={() => handleVote(-1)}
+            disabled={isPending}
+            aria-label="Downvote"
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold border-2 transition-all active:scale-95
+              ${userVote === -1
+                ? 'bg-red-500 border-red-500 text-white shadow-sm'
+                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-red-400 hover:text-red-500'
+              } disabled:opacity-50`}
+          >
+            👎 Not funny
+          </button>
+          {userVote !== null && (
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">
+              {userVote === 1 ? 'Voted funny!' : 'Voted not funny'}
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 dark:text-gray-500 italic">Voting unavailable for this caption</p>
+      )}
     </div>
   );
 }
@@ -418,25 +504,7 @@ function CaptionResults({ captions, imageUrl }: { captions: GeneratedCaption[]; 
       {/* Caption cards — staggered */}
       <div className="space-y-3">
         {captions.map((caption, idx) => (
-          <div
-            key={caption.id ?? idx}
-            className="p-5 bg-white dark:bg-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-sm"
-            style={{
-              animation: `caption-reveal 0.55s cubic-bezier(0.36,0.07,0.19,0.97) ${0.35 + idx * 0.12}s both`,
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">
-                {['😂', '🤣', '💀', '😭', '🙃'][idx % 5]}
-              </span>
-              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                Caption {idx + 1}
-              </span>
-            </div>
-            <p className="text-gray-800 dark:text-gray-200 text-base leading-relaxed font-medium">
-              {caption.content}
-            </p>
-          </div>
+          <CaptionCard key={caption.id ?? idx} caption={caption} idx={idx} />
         ))}
       </div>
 

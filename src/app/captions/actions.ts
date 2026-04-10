@@ -137,7 +137,10 @@ type CaptionWithImage = {
   } | null;
   voteScore: number;
   userVote: number | null;
+  /** ISO string of when the user first voted on this caption */
   voteTimestamp?: string;
+  /** ISO string of when the user last changed their vote — only present if different from voteTimestamp */
+  voteModifiedTimestamp?: string;
 };
 
 /**
@@ -386,11 +389,9 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
 
     if (votesError) throw votesError;
 
-    // Sort all votes by most recent activity (modified takes priority over created)
+    // Sort by when the user first cast their vote (oldest first → most recent first)
     allVotesData?.sort((a: any, b: any) => {
-      const aTime = a.modified_datetime_utc ?? a.created_datetime_utc;
-      const bTime = b.modified_datetime_utc ?? b.created_datetime_utc;
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
+      return new Date(b.created_datetime_utc).getTime() - new Date(a.created_datetime_utc).getTime();
     });
 
     const totalCount = allVotesData?.length ?? 0;
@@ -423,7 +424,12 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
 
         const voteScore = allVotes?.reduce((sum, v) => sum + v.vote_value, 0) || 0;
 
-        const voteTimestamp = vote.modified_datetime_utc ?? vote.created_datetime_utc;
+        const voteTimestamp = vote.created_datetime_utc;
+        const voteModifiedTimestamp =
+          vote.modified_datetime_utc &&
+          vote.modified_datetime_utc !== vote.created_datetime_utc
+            ? vote.modified_datetime_utc
+            : undefined;
 
         return {
           id: caption.id,
@@ -438,7 +444,8 @@ export async function getVotedCaptionHistory(page: number = 1, perPage: number =
           images: Array.isArray(caption.images) ? caption.images[0] : caption.images,
           voteScore,
           userVote: vote.vote_value,
-          voteTimestamp
+          voteTimestamp,
+          voteModifiedTimestamp,
         };
       })
     );
