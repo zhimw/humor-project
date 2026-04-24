@@ -56,9 +56,12 @@ export default async function Home() {
               <div className="max-w-3xl mx-auto space-y-8">
                 <div>
                   <h1 className="glow-text text-4xl font-bold text-gray-900 dark:text-white mb-3">
-                    Welcome back, {userProfile?.first_name || userProfile?.last_name
-                      ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
-                      : user.email}! 👋
+                    {(() => {
+                      const name = userProfile?.first_name || userProfile?.last_name
+                        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
+                        : user.email;
+                      return `Welcome back, ${name}! 👋`;
+                    })()}
                   </h1>
                   <p className="text-lg text-gray-500 dark:text-gray-400">
                     Your daily dose of caption comedy awaits.
