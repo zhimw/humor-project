@@ -28,12 +28,10 @@ The authentication setup across three separate Vercel deployments, all sharing o
 
 I also found it frustrating that the external caption-generation API (`api.almostcrackd.ai`) was sometimes slow or unavailable during development, which meant I could not always test the full pipeline end-to-end in a single sitting. Building around a dependency I had no visibility into or control over introduced unpredictability that made it harder to plan work sessions. Having a documented mock or stub for the pipeline API available from the start of the semester would have made local development significantly less friction-prone.
 
-Finally, the scope of the final submission — three deployed apps, a user study report, a testing document, a statistics dashboard, a duplicate feature, and a reflection, all due simultaneously — compressed the quality-vs-quantity tradeoff in the final weeks. Several of these deliverables could reasonably be standalone assignments. Distributing them more evenly across the semester (rather than front-loading flavor creation and back-loading nearly everything else) would allow for more deliberate work on each.
-
 ---
 
 ## Actionable Suggestion for Course Improvement
 
 **Provide a local pipeline mock from Week 1.**
 
-The caption generation API is central to every core feature of all three apps, but it is an external service that students cannot run locally, cannot inspect, and cannot control. When the API is slow, rate-limited, or returning unexpected responses, local development stops entirely. A simple mock server — even just a Node script that accepts the same request shape and returns a hardcoded array of fake captions — would allow students to develop and test the full upload-to-caption flow offline, regardless of API availability. This would reduce wasted debugging time, make it easier to write reliable automated tests, and let students focus on the parts of the project that are actually being evaluated. The mock could be provided as a starter file in the course repository from the very first week.
+The caption generation API is central to every core feature of all three apps, but it is an external service that students cannot run locally, cannot inspect, and cannot control. A simple mock server — even just a Node script that accepts the same request shape and returns a hardcoded array of fake captions — would allow students to develop and test the full upload-to-caption flow offline, regardless of API availability. This would reduce wasted debugging time, make it easier to write reliable automated tests, and let students focus on the parts of the project that are actually being evaluated. The mock could be provided as a starter file in the course repository from the very first week.
