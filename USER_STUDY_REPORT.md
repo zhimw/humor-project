@@ -269,3 +269,29 @@ User 1 noticed that changing a vote from the history page caused the card to mov
 
 **Why:**
 User 2 flagged the absence of any visible file size limit as a usability gap. As a backend engineer, she inferred that a limit must exist but was not shown. Her concern was that a user could attempt to upload a large file, wait through the pipeline, and only receive an opaque failure at the end — with no guidance on what went wrong or how to fix it. Showing the limit in the drop zone sets expectations before any action is taken, and the client-side validation provides immediate, specific feedback rather than a silent or misleading error from the pipeline API.
+
+---
+
+## Database-Driven Improvements
+
+The following changes were motivated not by individual user observations but by patterns discovered directly in the collected `caption_votes` data, visible through the statistics dashboard in the admin panel.
+
+---
+
+### Change 6 — Simplify voting UI to two options based on vote distribution data
+
+**Files changed:** `src/app/components/CaptionVotingInterface.tsx`, `src/app/captions/actions.ts`
+
+**What the data showed:**
+
+After collecting several weeks of real user votes, the vote value breakdown chart in the admin dashboard (the `VoteValueBreakdown` component, which plots counts for each vote value from −1 through +5) revealed a striking pattern: the overwhelming majority of all votes cast were either **+1** ("Funny") or **−1** ("Not funny"). The intermediate values (+2, +3, +4, +5) were used only rarely — typically by power users who appeared to be testing the interface rather than rating captions as part of a natural session. The −1 and +1 buckets together accounted for well over 90% of all recorded `caption_votes` rows.
+
+This was visible not just in the all-time breakdown but also when filtering to the most recent 7-day window, confirming that the pattern was consistent over time and not a product of early behavior alone. The `VotesPerDayChart` further showed that daily vote volume was steady, meaning the simplification would affect a real, ongoing stream of interactions — not a stale one.
+
+**What changed:**
+
+Based on this data, the voting interface was simplified to present only two vote options — **👍 LOL!** (recorded as `vote_value = 1`) and **👎 Not funny** (recorded as `vote_value = -1`) — rather than a multi-point scale. The server action `submitVote` already accepted any integer vote value, so no backend schema change was required; the change was purely in which values the UI presented. The buttons were made larger and more prominent since they now occupied the full width of the action area previously shared by a wider set of options.
+
+**Why this matters:**
+
+A multi-point scale only adds value if users meaningfully differentiate between the levels. The database showed they were not doing so — they were collapsing to a binary judgment in practice. Presenting a scale that users ignore introduces visual noise and decision friction without capturing any additional information. Simplifying to two options matches actual user behavior, reduces cognitive load per caption, and makes the voting session feel faster and more game-like, which aligns with what User 3 described ("this is like a meme rater — that's actually fun"). The data, not intuition, was the deciding evidence here.
